@@ -1,0 +1,46 @@
+name: Auto Green Wall
+
+# 每天10个时间点触发（已转换为UTC，对应国内时间大约9点到23点之间分散开）
+# 注意：GitHub Actions的schedule可能因平台负载有几分钟延迟，属正常现象
+on:
+  schedule:
+    - cron: '15 1 * * *'   # 约 09:15 CST
+    - cron: '50 2 * * *'   # 约 10:50 CST
+    - cron: '30 4 * * *'   # 约 12:30 CST
+    - cron: '45 5 * * *'   # 约 13:45 CST
+    - cron: '20 7 * * *'   # 约 15:20 CST
+    - cron: '40 8 * * *'   # 约 16:40 CST
+    - cron: '10 10 * * *'  # 约 18:10 CST
+    - cron: '35 11 * * *'  # 约 19:35 CST
+    - cron: '5 13 * * *'   # 约 21:05 CST
+    - cron: '20 14 * * *'  # 约 22:20 CST
+  workflow_dispatch:        # 允许在Actions页面手动点一下立刻触发，方便测试
+
+permissions:
+  contents: write           # 必须有这个权限才能push回仓库
+
+jobs:
+  commit:
+    runs-on: ubuntu-latest
+    steps:
+      - name: 检出仓库
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: 配置 git 身份
+        run: |
+          git config user.name "${{ secrets.GIT_USER_NAME }}"
+          git config user.email "${{ secrets.GIT_USER_EMAIL }}"
+
+      - name: 随机产生5~10次空提交
+        run: |
+          N=$(( RANDOM % 6 + 5 ))   # 5~10之间随机一个数
+          echo "本次触发将产生 $N 次提交"
+          for i in $(seq 1 "$N"); do
+            git commit --allow-empty -m "update $(date -u +'%Y-%m-%dT%H:%M:%SZ')" -q
+            sleep $(( RANDOM % 20 + 5 ))   # 每次间隔随机5~25秒，避免时间戳完全一致
+          done
+
+      - name: 推送
+        run: git push origin HEAD:${{ github.ref_name }}
